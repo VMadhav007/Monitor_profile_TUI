@@ -51,9 +51,6 @@ fn main() -> Result<()> {
         }
     };
 
-    // Read initial brightness
-    let brightness = monitor::get_brightness(mon.display).unwrap_or(50);
-
     // Read initial preset
     let active_preset = match monitor::get_preset(mon.display) {
         Ok(p) => Preset::ALL
@@ -61,6 +58,22 @@ fn main() -> Result<()> {
             .position(|x| *x == p)
             .unwrap_or(0),
         Err(_) => 0,
+    };
+
+    // Read brightness — if in a non-Standard mode, the monitor may report
+    // a locked value (e.g. 100%). Temporarily switch to Standard to read
+    // the real brightness, then switch back.
+    let brightness = if active_preset != 0 {
+        let current_preset = Preset::ALL[active_preset];
+        // Switch to Standard to read real brightness
+        let _ = monitor::set_preset(mon.display, Preset::Standard);
+        std::thread::sleep(Duration::from_millis(300));
+        let b = monitor::get_brightness(mon.display).unwrap_or(50);
+        // Switch back to the original preset
+        let _ = monitor::set_preset(mon.display, current_preset);
+        b
+    } else {
+        monitor::get_brightness(mon.display).unwrap_or(50)
     };
 
     let mut app = App::new(mon, brightness, active_preset);
@@ -88,12 +101,16 @@ fn run_app(
     app: &mut App,
 ) -> Result<()> {
     loop {
+        // Brightness editing only allowed in Standard mode (index 0)
+        let brightness_locked = app.active_preset != 0;
+
         terminal.draw(|frame| {
             let state = ui::UiState {
                 monitor_name: &app.monitor.name,
                 connection: &app.monitor.connection,
                 brightness: app.brightness,
                 pending_brightness: app.pending_brightness,
+                brightness_locked,
                 presets: &Preset::ALL,
                 selected_preset: app.selected_preset,
                 active_preset: app.active_preset,
@@ -129,16 +146,24 @@ fn run_app(
                     }
 
                     KeyCode::Left => {
-                        app.pending_brightness = app.pending_brightness.saturating_sub(5);
+                        if brightness_locked {
+                            app.error_msg = Some("Brightness can only be changed in Standard mode".to_string());
+                        } else {
+                            app.pending_brightness = app.pending_brightness.saturating_sub(5);
+                        }
                     }
 
                     KeyCode::Right => {
-                        app.pending_brightness = (app.pending_brightness + 5).min(100);
+                        if brightness_locked {
+                            app.error_msg = Some("Brightness can only be changed in Standard mode".to_string());
+                        } else {
+                            app.pending_brightness = (app.pending_brightness + 5).min(100);
+                        }
                     }
 
                     KeyCode::Enter => {
-                        // Apply pending brightness if changed
-                        if app.pending_brightness != app.brightness {
+                        // Apply pending brightness if changed (only in Standard mode)
+                        if !brightness_locked && app.pending_brightness != app.brightness {
                             match monitor::set_brightness(app.monitor.display, app.pending_brightness) {
                                 Ok(()) => app.brightness = app.pending_brightness,
                                 Err(e) => app.error_msg = Some(format!("Failed to change brightness: {}", e)),
@@ -148,7 +173,14 @@ fn run_app(
                         if app.selected_preset != app.active_preset {
                             let preset = Preset::ALL[app.selected_preset];
                             match monitor::set_preset(app.monitor.display, preset) {
-                                Ok(()) => app.active_preset = app.selected_preset,
+                                Ok(()) => {
+                                    app.active_preset = app.selected_preset;
+                                    // Re-read brightness after preset change since it may differ
+                                    if let Ok(b) = monitor::get_brightness(app.monitor.display) {
+                                        app.brightness = b;
+                                        app.pending_brightness = b;
+                                    }
+                                }
                                 Err(e) => app.error_msg = Some(format!("Failed to set preset: {}", e)),
                             }
                         }

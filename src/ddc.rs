@@ -43,19 +43,32 @@ pub fn set_vcp(display: u32, code: &str, value: u8) -> Result<()> {
     Ok(())
 }
 
-/// Parse `current value = <N>` from ddcutil getvcp output.
+/// Parse the current value from ddcutil getvcp output.
+///
+/// Handles two formats:
+///   Standard:       "current value =   70, max value =  100"
+///   Manufacturer:   "mh=0x00, ml=0x0a, sh=0x00, sl=0x0a"
 pub fn parse_current_value(output: &str) -> Result<u8> {
-    // ddcutil output looks like:
-    //   VCP code 0x10 (Brightness                    ): current value =   70, max value =  100
-    // We look for "current value ="
     for line in output.lines() {
+        // Standard format: "current value = N"
         if let Some(pos) = line.find("current value =") {
             let after = &line[pos + "current value =".len()..];
-            // Take characters until comma or end
             let num_str: String = after.chars().take_while(|c| *c == ' ' || c.is_ascii_digit()).collect();
             let val: u8 = num_str.trim().parse().context("Failed to parse VCP value")?;
             return Ok(val);
         }
+
+        // Manufacturer-specific format: "sl=0x0a"
+        if let Some(pos) = line.find("sl=0x") {
+            let hex_start = pos + "sl=0x".len();
+            let hex_str: String = line[hex_start..]
+                .chars()
+                .take_while(|c| c.is_ascii_hexdigit())
+                .collect();
+            let val = u8::from_str_radix(&hex_str, 16)
+                .context("Failed to parse manufacturer-specific VCP hex value")?;
+            return Ok(val);
+        }
     }
-    Err(anyhow!("Could not find 'current value' in ddcutil output"))
+    Err(anyhow!("Could not find current value in ddcutil output"))
 }

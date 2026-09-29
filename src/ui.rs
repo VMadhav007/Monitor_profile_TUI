@@ -29,6 +29,7 @@ pub struct UiState<'a> {
     pub connection: &'a str,
     pub brightness: u8,
     pub pending_brightness: u8,
+    pub brightness_locked: bool,
     pub presets: &'a [Preset],
     pub selected_preset: usize,
     pub active_preset: usize,
@@ -96,11 +97,18 @@ fn draw_brightness(frame: &mut Frame, area: Rect, state: &UiState) {
         "─".repeat(empty),
     );
 
-    let bar_color = if is_pending { Palette::YELLOW } else { Palette::BLUE };
-    let pct_label = if is_pending {
-        format!("  {}% (pending)", display_val)
+    let (bar_color, pct_label) = if state.brightness_locked {
+        (Palette::SUBTEXT, format!("  {}% · locked", display_val))
+    } else if is_pending {
+        (Palette::YELLOW, format!("  {}% (pending)", display_val))
     } else {
-        format!("  {}%", display_val)
+        (Palette::BLUE, format!("  {}%", display_val))
+    };
+
+    let label_style = if state.brightness_locked {
+        Style::default().fg(Palette::SUBTEXT)
+    } else {
+        Style::default().fg(Palette::TEXT).add_modifier(Modifier::BOLD)
     };
 
     let lines = vec![
@@ -111,7 +119,7 @@ fn draw_brightness(frame: &mut Frame, area: Rect, state: &UiState) {
             Span::raw("  "),
             Span::styled(&bar[..filled * 3], Style::default().fg(bar_color)), // ━ is 3 bytes
             Span::styled(&bar[filled * 3..], Style::default().fg(Palette::SUBTEXT)),
-            Span::styled(pct_label, Style::default().fg(Palette::TEXT).add_modifier(Modifier::BOLD)),
+            Span::styled(pct_label, label_style),
         ]),
     ];
 
