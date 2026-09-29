@@ -309,6 +309,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "madctl"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "crossterm 0.29.0",
+ "ratatui",
+]
+
+[[package]]
 name = "mio"
 version = "1.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -318,15 +327,6 @@ dependencies = [
  "log",
  "wasi",
  "windows-sys 0.61.2",
-]
-
-[[package]]
-name = "monitorctl"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "crossterm 0.29.0",
- "ratatui",
 ]
 
 [[package]]

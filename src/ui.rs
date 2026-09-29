@@ -8,6 +8,21 @@ use ratatui::{
 
 use crate::preset::Preset;
 
+/// Custom Dark Palette (Matched to terminal prompt)
+struct Palette;
+impl Palette {
+    // Purple/Lavender from the time section
+    const BLUE: Color = Color::Rgb(186, 180, 250); 
+    const TEXT: Color = Color::Rgb(240, 240, 240);
+    const SUBTEXT: Color = Color::Rgb(120, 125, 140);
+    // Green from the version section
+    const GREEN: Color = Color::Rgb(152, 222, 142);
+    // Yellow/Peach from the git branch section
+    const YELLOW: Color = Color::Rgb(246, 211, 143);
+    // Pink/Red from the user/host section
+    const RED: Color = Color::Rgb(238, 121, 149);
+}
+
 /// All the state the UI needs to render a frame.
 pub struct UiState<'a> {
     pub monitor_name: &'a str,
@@ -25,9 +40,9 @@ pub fn draw(frame: &mut Frame, state: &UiState) {
 
     // Outer block
     let outer = Block::default()
-        .title("  MonitorCtl  ")
+        .title("  MadCtl  ")
         .borders(Borders::ALL)
-        .border_style(Style::default().fg(Color::Cyan));
+        .border_style(Style::default().fg(Palette::BLUE));
 
     let inner = outer.inner(area);
     frame.render_widget(outer, area);
@@ -50,8 +65,8 @@ pub fn draw(frame: &mut Frame, state: &UiState) {
 }
 
 fn draw_monitor_info(frame: &mut Frame, area: Rect, state: &UiState) {
-    let label = Style::default().fg(Color::DarkGray);
-    let value = Style::default().fg(Color::White).add_modifier(Modifier::BOLD);
+    let label = Style::default().fg(Palette::SUBTEXT);
+    let value = Style::default().fg(Palette::TEXT).add_modifier(Modifier::BOLD);
 
     let lines = vec![
         Line::from(vec![
@@ -81,7 +96,7 @@ fn draw_brightness(frame: &mut Frame, area: Rect, state: &UiState) {
         "─".repeat(empty),
     );
 
-    let bar_color = if is_pending { Color::Yellow } else { Color::Cyan };
+    let bar_color = if is_pending { Palette::YELLOW } else { Palette::BLUE };
     let pct_label = if is_pending {
         format!("  {}% (pending)", display_val)
     } else {
@@ -90,13 +105,13 @@ fn draw_brightness(frame: &mut Frame, area: Rect, state: &UiState) {
 
     let lines = vec![
         Line::from(vec![
-            Span::styled("  Brightness  ", Style::default().fg(Color::DarkGray)),
+            Span::styled("  Brightness  ", Style::default().fg(Palette::SUBTEXT)),
         ]),
         Line::from(vec![
             Span::raw("  "),
             Span::styled(&bar[..filled * 3], Style::default().fg(bar_color)), // ━ is 3 bytes
-            Span::styled(&bar[filled * 3..], Style::default().fg(Color::DarkGray)),
-            Span::styled(pct_label, Style::default().fg(Color::White).add_modifier(Modifier::BOLD)),
+            Span::styled(&bar[filled * 3..], Style::default().fg(Palette::SUBTEXT)),
+            Span::styled(pct_label, Style::default().fg(Palette::TEXT).add_modifier(Modifier::BOLD)),
         ]),
     ];
 
@@ -108,7 +123,7 @@ fn draw_presets(frame: &mut Frame, area: Rect, state: &UiState) {
     let mut lines = vec![
         Line::from(Span::styled(
             "  Preset",
-            Style::default().fg(Color::DarkGray),
+            Style::default().fg(Palette::SUBTEXT),
         )),
         Line::from(""),
     ];
@@ -122,16 +137,16 @@ fn draw_presets(frame: &mut Frame, area: Rect, state: &UiState) {
 
         let style = if is_active && is_selected {
             Style::default()
-                .fg(Color::Green)
+                .fg(Palette::GREEN)
                 .add_modifier(Modifier::BOLD)
         } else if is_selected {
             Style::default()
-                .fg(Color::Cyan)
+                .fg(Palette::BLUE)
                 .add_modifier(Modifier::BOLD)
         } else if is_active {
-            Style::default().fg(Color::Green)
+            Style::default().fg(Palette::GREEN)
         } else {
-            Style::default().fg(Color::White)
+            Style::default().fg(Palette::TEXT)
         };
 
         lines.push(Line::from(Span::styled(format!("  {}", label), style)));
@@ -142,7 +157,7 @@ fn draw_presets(frame: &mut Frame, area: Rect, state: &UiState) {
         lines.push(Line::from(""));
         lines.push(Line::from(Span::styled(
             format!("  ✗ {}", err),
-            Style::default().fg(Color::Red),
+            Style::default().fg(Palette::RED),
         )));
     }
 
@@ -152,9 +167,9 @@ fn draw_presets(frame: &mut Frame, area: Rect, state: &UiState) {
 
 fn draw_status_bar(frame: &mut Frame, area: Rect, _state: &UiState) {
     let style_key = Style::default()
-        .fg(Color::Cyan)
+        .fg(Palette::BLUE)
         .add_modifier(Modifier::BOLD);
-    let style_desc = Style::default().fg(Color::DarkGray);
+    let style_desc = Style::default().fg(Palette::SUBTEXT);
 
     let lines = vec![
         Line::from(vec![
@@ -176,7 +191,7 @@ fn draw_status_bar(frame: &mut Frame, area: Rect, _state: &UiState) {
     let para = Paragraph::new(lines).block(
         Block::default()
             .borders(Borders::TOP)
-            .border_style(Style::default().fg(Color::DarkGray)),
+            .border_style(Style::default().fg(Palette::SUBTEXT)),
     );
     frame.render_widget(para, area);
 }
@@ -186,9 +201,9 @@ pub fn draw_error(frame: &mut Frame, message: &str) {
     let area = frame.area();
 
     let outer = Block::default()
-        .title("  MonitorCtl  ")
+        .title("  MadCtl  ")
         .borders(Borders::ALL)
-        .border_style(Style::default().fg(Color::Red));
+        .border_style(Style::default().fg(Palette::RED));
 
     let inner = outer.inner(area);
     frame.render_widget(outer, area);
@@ -197,12 +212,12 @@ pub fn draw_error(frame: &mut Frame, message: &str) {
         Line::from(""),
         Line::from(Span::styled(
             format!("  ✗ {}", message),
-            Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
+            Style::default().fg(Palette::RED).add_modifier(Modifier::BOLD),
         )),
         Line::from(""),
         Line::from(Span::styled(
             "  Press q to quit",
-            Style::default().fg(Color::DarkGray),
+            Style::default().fg(Palette::SUBTEXT),
         )),
     ];
 
